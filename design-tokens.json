@@ -1,0 +1,51 @@
+{
+  "$comment": "Source of truth for review. Compose implementation: composeApp/src/commonMain/kotlin/app/cardfilter/designsystem/Theme.kt. Keep both in sync.",
+  "color": {
+    "light": {
+      "primary": "#2F6B4F",
+      "onPrimary": "#FFFFFF",
+      "primaryContainer": "#D8EBDD",
+      "onPrimaryContainer": "#0F2A1D",
+      "secondaryContainer": "#EFE7D8",
+      "onSecondaryContainer": "#2B2418",
+      "background": "#FBF8F3",
+      "onBackground": "#1F2A24",
+      "surface": "#FFFFFF",
+      "onSurface": "#1F2A24",
+      "surfaceVariant": "#F1EEE7",
+      "onSurfaceVariant": "#5B655F",
+      "outline": "#857F72",
+      "outlineVariant": "#C9C3B8",
+      "error": "#B3261E",
+      "onError": "#FFFFFF"
+    },
+    "dark": {
+      "primary": "#8FD0AB",
+      "onPrimary": "#0C2A1B",
+      "primaryContainer": "#1F4A35",
+      "onPrimaryContainer": "#D8EBDD",
+      "secondaryContainer": "#2B2A24",
+      "onSecondaryContainer": "#EFE7D8",
+      "background": "#121815",
+      "onBackground": "#E4EAE5",
+      "surface": "#1B231F",
+      "onSurface": "#E4EAE5",
+      "surfaceVariant": "#242D28",
+      "onSurfaceVariant": "#A9B4AD",
+      "outline": "#6F7B74",
+      "outlineVariant": "#4A5750",
+      "error": "#F2B8B5",
+      "onError": "#601410"
+    }
+  },
+  "typography": {
+    "fontFamily": "system",
+    "titleLarge": { "size": 22, "lineHeight": 28, "weight": 600 },
+    "titleMedium": { "size": 16, "lineHeight": 24, "weight": 500 },
+    "bodyLarge": { "size": 16, "lineHeight": 24, "weight": 400 },
+    "bodyMedium": { "size": 14, "lineHeight": 20, "weight": 400 },
+    "labelLarge": { "size": 14, "lineHeight": 20, "weight": 500 }
+  },
+  "spacing": { "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32, "minTouchTarget": 48 },
+  "radius": { "small": 8, "medium": 12, "large": 16 }
+}

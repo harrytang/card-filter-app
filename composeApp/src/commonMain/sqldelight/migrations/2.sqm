@@ -1,0 +1,5 @@
+-- v2 -> v3: a card can own one image, stored on the device (Card Images, Milestone 1).
+CREATE TABLE card_image (
+    card_id INTEGER NOT NULL PRIMARY KEY REFERENCES card(id),
+    bytes BLOB NOT NULL
+);

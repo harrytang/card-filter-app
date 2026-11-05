@@ -1,0 +1,9 @@
+-- v1 -> v2: cards gain user-defined attributes (Milestone 2).
+CREATE TABLE card_attribute (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    card_id INTEGER NOT NULL REFERENCES card(id),
+    name TEXT NOT NULL,
+    value TEXT NOT NULL
+);
+
+CREATE INDEX card_attribute_card_id ON card_attribute(card_id);

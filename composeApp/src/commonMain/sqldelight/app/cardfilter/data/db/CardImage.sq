@@ -1,0 +1,22 @@
+-- At most one image per card; the primary key doubles as the lookup index. Kept out of the card
+-- table so the card list query never reads image bytes.
+CREATE TABLE card_image (
+    card_id INTEGER NOT NULL PRIMARY KEY REFERENCES card(id),
+    bytes BLOB NOT NULL
+);
+
+insert:
+INSERT INTO card_image (card_id, bytes) VALUES (?, ?);
+
+-- Used by an import that overwrites a card: the card may or may not have an image row already.
+replace:
+INSERT OR REPLACE INTO card_image (card_id, bytes) VALUES (?, ?);
+
+selectByCard:
+SELECT bytes FROM card_image WHERE card_id = ?;
+
+deleteByCard:
+DELETE FROM card_image WHERE card_id = ?;
+
+deleteByTopic:
+DELETE FROM card_image WHERE card_id IN (SELECT id FROM card WHERE topic_id = ?);

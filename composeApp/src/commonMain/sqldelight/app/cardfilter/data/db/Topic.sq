@@ -1,0 +1,23 @@
+CREATE TABLE topic (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+selectAll:
+SELECT id, name FROM topic ORDER BY created_at, id;
+
+selectById:
+SELECT id, name FROM topic WHERE id = ?;
+
+insert:
+INSERT INTO topic (name, created_at) VALUES (?, ?);
+
+lastInsertId:
+SELECT last_insert_rowid();
+
+rename:
+UPDATE topic SET name = ? WHERE id = ?;
+
+delete:
+DELETE FROM topic WHERE id = ?;

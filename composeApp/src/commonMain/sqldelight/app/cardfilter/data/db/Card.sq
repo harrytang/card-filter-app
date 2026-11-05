@@ -1,0 +1,44 @@
+CREATE TABLE card (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    topic_id INTEGER NOT NULL REFERENCES topic(id),
+    title TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX card_topic_id ON card(topic_id);
+
+-- One row per attribute. A card without attributes still produces one row (attribute columns NULL).
+selectWithAttributesByTopic:
+SELECT card.id, card.topic_id, card.title,
+       card_attribute.name AS attribute_name,
+       card_attribute.value AS attribute_value,
+       EXISTS(SELECT 1 FROM card_image WHERE card_image.card_id = card.id) AS has_image
+FROM card
+LEFT JOIN card_attribute ON card_attribute.card_id = card.id
+WHERE card.topic_id = ?
+ORDER BY card.created_at, card.id, card_attribute.id;
+
+selectWithAttributesById:
+SELECT card.id, card.topic_id, card.title,
+       card_attribute.name AS attribute_name,
+       card_attribute.value AS attribute_value,
+       EXISTS(SELECT 1 FROM card_image WHERE card_image.card_id = card.id) AS has_image
+FROM card
+LEFT JOIN card_attribute ON card_attribute.card_id = card.id
+WHERE card.id = ?
+ORDER BY card_attribute.id;
+
+insert:
+INSERT INTO card (topic_id, title, created_at) VALUES (?, ?, ?);
+
+lastInsertId:
+SELECT last_insert_rowid();
+
+updateTitle:
+UPDATE card SET title = ? WHERE id = ?;
+
+delete:
+DELETE FROM card WHERE id = ?;
+
+deleteByTopic:
+DELETE FROM card WHERE topic_id = ?;

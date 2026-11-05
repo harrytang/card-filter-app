@@ -1,0 +1,58 @@
+name: iosApp
+options:
+  bundleIdPrefix: app.cardfilter
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # The Gradle pre-build script below writes into the source tree.
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    sources:
+      - iosApp
+    info:
+      path: iosApp/Info.plist
+      properties:
+        CFBundleDisplayName: Card Filter
+        UILaunchScreen: {}
+        # Required by Compose Multiplatform on iOS (full refresh rate on ProMotion iPhones).
+        CADisableMinimumFrameDurationOnPhone: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.cardfilter.iosApp
+        FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - "ComposeApp"
+          # The Kotlin framework is static, so the app must link SQLite for SQLDelight itself.
+          - "-lsqlite3"
+    preBuildScripts:
+      - name: Build Kotlin framework
+        basedOnDependencyAnalysis: false
+        script: |
+          # Xcode does not inherit your shell's JAVA_HOME. Fall back to Android Studio's bundled JDK.
+          if [ -z "$JAVA_HOME" ]; then
+            export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+    scheme:
+      testTargets:
+        - iosAppUITests
+  iosAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - iosAppUITests
+    dependencies:
+      - target: iosApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.cardfilter.iosAppUITests
+        TEST_TARGET_NAME: iosApp
+        GENERATE_INFOPLIST_FILE: YES
