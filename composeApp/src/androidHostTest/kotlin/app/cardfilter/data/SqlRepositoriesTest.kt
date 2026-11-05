@@ -378,6 +378,56 @@ class SqlCardRepositoryTest {
     }
 
     @Test
+    fun aNewCardIsNotAFavorite() = runTest {
+        val card = db.cards.create(topicA, "A", emptyList())
+
+        assertFalse(card.isFavorite)
+        assertFalse(db.cards.get(card.id)!!.isFavorite)
+    }
+
+    @Test
+    fun setFavorite_isStoredAndCanBeCleared() = runTest {
+        val a = db.cards.create(topicA, "A", emptyList())
+        val b = db.cards.create(topicA, "B", emptyList())
+
+        db.cards.setFavorite(a.id, true)
+
+        assertEquals(listOf(true, false), db.cards.observeByTopic(topicA).first().map { it.isFavorite })
+
+        db.cards.setFavorite(a.id, false)
+
+        assertTrue(db.cards.observeByTopic(topicA).first().none { it.isFavorite })
+        assertFalse(db.cards.get(b.id)!!.isFavorite)
+    }
+
+    @Test
+    fun aFavoriteSurvivesEditingTheCard() = runTest {
+        val card = db.cards.create(topicA, "A", listOf(Attribute("k", "v")))
+        db.cards.setFavorite(card.id, true)
+
+        db.cards.update(card.id, "A renamed", listOf(Attribute("k2", "v2")))
+
+        assertTrue(db.cards.get(card.id)!!.isFavorite)
+    }
+
+    @Test
+    fun aFavoriteSurvivesAnImportThatOverwritesTheCard() = runTest {
+        val card = db.cards.create(topicA, "A", emptyList())
+        db.cards.setFavorite(card.id, true)
+
+        db.cards.importCards(topicA, listOf(CardWrite.Overwrite(card.id, "A new", emptyList(), null)))
+
+        assertTrue(db.cards.get(card.id)!!.isFavorite)
+    }
+
+    @Test
+    fun aCardCreatedByAnImportIsNotAFavorite() = runTest {
+        db.cards.importCards(topicA, listOf(CardWrite.Create("New", emptyList(), null)))
+
+        assertFalse(db.cards.observeByTopic(topicA).first().single().isFavorite)
+    }
+
+    @Test
     fun importCards_overwriteWithAnImage_replacesTheOldImage() = runTest {
         val card = db.cards.create(topicA, "A", emptyList(), byteArrayOf(1))
 

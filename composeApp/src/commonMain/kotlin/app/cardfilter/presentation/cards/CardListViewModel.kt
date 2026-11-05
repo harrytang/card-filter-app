@@ -14,6 +14,8 @@ import app.cardfilter.domain.usecase.GetCardImage
 import app.cardfilter.domain.usecase.ObserveCards
 import app.cardfilter.domain.usecase.ObserveQuickFilters
 import app.cardfilter.domain.usecase.ObserveTopic
+import app.cardfilter.domain.usecase.SetCardFavorite
+import app.cardfilter.domain.search.favoritesFirst
 import app.cardfilter.domain.usecase.SaveQuickFilter
 import app.cardfilter.domain.validation.SaveOutcome
 import app.cardfilter.domain.validation.TitleError
@@ -76,6 +78,7 @@ class CardListViewModel(
     observeCards: ObserveCards,
     private val deleteCard: DeleteCard,
     private val getCardImage: GetCardImage,
+    private val setCardFavorite: SetCardFavorite,
     observeQuickFilters: ObserveQuickFilters,
     private val saveQuickFilter: SaveQuickFilter,
     private val editQuickFilter: EditQuickFilter,
@@ -106,7 +109,7 @@ class CardListViewModel(
                     _state.update {
                         it.copy(
                             cards = search.cards,
-                            visibleCards = search.filter(query, notQuery),
+                            visibleCards = search.filter(query, notQuery).favoritesFirst(),
                             isLoading = false,
                         )
                     }
@@ -180,6 +183,14 @@ class CardListViewModel(
                 onSuccess = { onQuickFilterDialogDismiss() },
                 onFailure = { _state.update { it.copy(failure = true) } },
             )
+        }
+    }
+
+    /** Flips the heart; the list reorders itself when the stored card changes. */
+    fun onFavoriteClick(card: Card) {
+        viewModelScope.launch {
+            attempt { setCardFavorite(card.id, !card.isFavorite) }
+                .onFailure { _state.update { it.copy(failure = true) } }
         }
     }
 

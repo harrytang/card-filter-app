@@ -89,6 +89,10 @@ class FakeCardRepository : CardRepository {
         }
     }
 
+    override suspend fun setFavorite(id: CardId, favorite: Boolean) {
+        cards.update { list -> list.map { if (it.id == id) it.copy(isFavorite = favorite) else it } }
+    }
+
     override suspend fun delete(id: CardId) {
         images.remove(id)
         cards.update { list -> list.filterNot { it.id == id } }

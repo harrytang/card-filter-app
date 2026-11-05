@@ -79,6 +79,10 @@ class EditCard(private val repository: CardRepository) {
         }
 }
 
+class SetCardFavorite(private val repository: CardRepository) {
+    suspend operator fun invoke(id: CardId, favorite: Boolean) = repository.setFavorite(id, favorite)
+}
+
 class DeleteCard(private val repository: CardRepository) {
     suspend operator fun invoke(id: CardId) = repository.delete(id)
 }

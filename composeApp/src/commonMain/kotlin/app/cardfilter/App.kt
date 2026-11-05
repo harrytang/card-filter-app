@@ -66,6 +66,7 @@ fun App(container: AppContainer) {
                         observeCards = container.observeCards,
                         deleteCard = container.deleteCard,
                         getCardImage = container.getCardImage,
+                        setCardFavorite = container.setCardFavorite,
                         observeQuickFilters = container.observeQuickFilters,
                         saveQuickFilter = container.saveQuickFilter,
                         editQuickFilter = container.editQuickFilter,

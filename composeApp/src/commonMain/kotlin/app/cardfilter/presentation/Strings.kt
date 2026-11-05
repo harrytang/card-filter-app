@@ -38,6 +38,15 @@ internal object Strings {
     const val clearNotFilter = "Clear Not filter"
     const val notFilterNote =
         "Hides cards that contain any of these words. A card with no recorded value is not hidden."
+    const val addFavorite = "Add to favorites"
+    const val removeFavorite = "Remove from favorites"
+
+    /** "12 cards", or "3 of 12 cards" while a filter hides some of them. */
+    fun cardCount(shown: Int, total: Int): String {
+        val noun = if (total == 1) "card" else "cards"
+        return if (shown == total) "$total $noun" else "$shown of $total $noun"
+    }
+
     const val quickFilters = "Quick filters"
     const val addQuickFilter = "New filter"
     const val newQuickFilterTitle = "New quick filter"

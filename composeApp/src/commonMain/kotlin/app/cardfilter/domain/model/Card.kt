@@ -18,4 +18,5 @@ data class Card(
     val attributes: List<Attribute> = emptyList(),
     /** Whether an image is stored for this card; the bytes are fetched on demand, not carried here. */
     val hasImage: Boolean = false,
+    val isFavorite: Boolean = false,
 )

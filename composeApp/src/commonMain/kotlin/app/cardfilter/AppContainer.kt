@@ -23,6 +23,7 @@ import app.cardfilter.domain.usecase.SaveQuickFilter
 import app.cardfilter.domain.usecase.ObserveTopic
 import app.cardfilter.domain.usecase.ObserveTopics
 import app.cardfilter.domain.usecase.RenameTopic
+import app.cardfilter.domain.usecase.SetCardFavorite
 import app.cash.sqldelight.db.SqlDriver
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
@@ -67,6 +68,7 @@ class AppContainer(driver: SqlDriver) {
     val importCards = ImportCards(cards, fetchCardImage)
     val editCard = EditCard(cards)
     val deleteCard = DeleteCard(cards)
+    val setCardFavorite = SetCardFavorite(cards)
 
     val observeQuickFilters = ObserveQuickFilters(quickFilters)
     val saveQuickFilter = SaveQuickFilter(quickFilters)

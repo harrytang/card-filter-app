@@ -15,6 +15,7 @@ import app.cardfilter.domain.usecase.SaveQuickFilter
 import app.cardfilter.domain.validation.TitleError
 import app.cardfilter.testutil.FakeQuickFilterRepository
 import app.cardfilter.domain.usecase.GetCardImage
+import app.cardfilter.domain.usecase.SetCardFavorite
 import app.cardfilter.domain.usecase.ObserveCards
 import app.cardfilter.domain.usecase.ObserveTopic
 import app.cardfilter.testutil.FakeCardRepository
@@ -59,6 +60,7 @@ class CardListViewModelTest {
         observeCards = ObserveCards(source),
         deleteCard = DeleteCard(source),
         getCardImage = GetCardImage(source),
+        setCardFavorite = SetCardFavorite(source),
         observeQuickFilters = ObserveQuickFilters(quickFilters),
         saveQuickFilter = SaveQuickFilter(quickFilters),
         editQuickFilter = EditQuickFilter(quickFilters),
@@ -202,6 +204,7 @@ class CardListViewModelTest {
             observeCards = ObserveCards(cards),
             deleteCard = DeleteCard(cards),
             getCardImage = GetCardImage(cards),
+            setCardFavorite = SetCardFavorite(cards),
             observeQuickFilters = ObserveQuickFilters(quickFilters),
             saveQuickFilter = SaveQuickFilter(quickFilters),
             editQuickFilter = EditQuickFilter(quickFilters),
@@ -576,5 +579,73 @@ class CardListViewModelTest {
 
         assertNull(viewModel.state.value.quickFilterDialog)
         assertNull(viewModel.state.value.nameError)
+    }
+
+    // ---- favorites
+
+    @Test
+    fun favoritesAreListedFirst_andTheRestKeepTheirOrder() = runTest {
+        cards.create(topicA, "a", emptyList())
+        val b = cards.create(topicA, "b", emptyList())
+        cards.create(topicA, "c", emptyList())
+        val d = cards.create(topicA, "d", emptyList())
+        cards.setFavorite(b.id, true)
+        cards.setFavorite(d.id, true)
+
+        val titles = viewModel().state.value.visibleCards.map { it.title }
+
+        assertEquals(listOf("b", "d", "a", "c"), titles)
+    }
+
+    @Test
+    fun favoritesAreListedFirstInAFilteredListToo() = runTest {
+        cards.create(topicA, "plain egg", listOf(Attribute("k", "egg")))
+        val fav = cards.create(topicA, "fav egg", listOf(Attribute("k", "egg")))
+        cards.create(topicA, "other", listOf(Attribute("k", "rice")))
+        cards.setFavorite(fav.id, true)
+        val viewModel = viewModel()
+
+        viewModel.onQueryChange("egg")
+
+        assertEquals(listOf("fav egg", "plain egg"), viewModel.state.value.visibleCards.map { it.title })
+    }
+
+    @Test
+    fun tappingTheHeart_favoritesTheCardAndMovesItToTheTop() = runTest {
+        cards.create(topicA, "a", emptyList())
+        val b = cards.create(topicA, "b", emptyList())
+        val viewModel = viewModel()
+
+        viewModel.onFavoriteClick(viewModel.state.value.cards.first { it.id == b.id })
+
+        val state = viewModel.state.value
+        assertEquals(listOf("b", "a"), state.visibleCards.map { it.title })
+        assertTrue(state.visibleCards.first().isFavorite)
+    }
+
+    @Test
+    fun tappingTheHeartOfAFavorite_removesItAndReturnsItToItsPlace() = runTest {
+        cards.create(topicA, "a", emptyList())
+        val b = cards.create(topicA, "b", emptyList())
+        cards.setFavorite(b.id, true)
+        val viewModel = viewModel()
+
+        viewModel.onFavoriteClick(viewModel.state.value.visibleCards.first())
+
+        assertEquals(listOf("a", "b"), viewModel.state.value.visibleCards.map { it.title })
+        assertTrue(viewModel.state.value.visibleCards.none { it.isFavorite })
+    }
+
+    @Test
+    fun aFailingFavoriteChange_setsFailure() = runTest {
+        val card = cards.create(topicA, "a", emptyList())
+        val failing = object : CardRepository by cards {
+            override suspend fun setFavorite(id: CardId, favorite: Boolean) = error("db locked")
+        }
+        val viewModel = viewModel(source = failing)
+
+        viewModel.onFavoriteClick(card)
+
+        assertTrue(viewModel.state.value.failure)
     }
 }

@@ -82,8 +82,51 @@ class MigrationTest {
     ).value
 
     @Test
-    fun schemaVersionIsFourAfterTheQuickFilterMigration() {
-        assertEquals(4L, AppDatabase.Schema.version)
+    fun schemaVersionIsFiveAfterTheFavoriteMigration() {
+        assertEquals(5L, AppDatabase.Schema.version)
+    }
+
+    /** The version 4 schema: version 3 plus the quick filter table, copied verbatim. */
+    private fun installVersionFourDatabase() {
+        installMilestoneTwoDatabase()
+        listOf(
+            "CREATE TABLE card_image (card_id INTEGER NOT NULL PRIMARY KEY REFERENCES card(id), bytes BLOB NOT NULL)",
+            """
+            CREATE TABLE quick_filter (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                topic_id INTEGER NOT NULL REFERENCES topic(id),
+                name TEXT NOT NULL,
+                include_query TEXT NOT NULL,
+                exclude_query TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            "CREATE INDEX quick_filter_topic_id ON quick_filter(topic_id)",
+            "INSERT INTO quick_filter (topic_id, name, include_query, exclude_query, created_at) VALUES (1, 'Safe', '7', 'egg', 5)",
+        ).forEach { driver.execute(null, it, 0) }
+    }
+
+    @Test
+    fun migratingFromVersionFour_keepsEveryCardAndMakesNoneAFavorite() = runTest {
+        installVersionFourDatabase()
+
+        AppDatabase.Schema.migrate(driver, 4, AppDatabase.Schema.version)
+
+        val migrated = cards().observeByTopic(TopicId(1)).first()
+        assertEquals(2, migrated.size)
+        assertEquals(listOf(false, false), migrated.map { it.isFavorite })
+        assertEquals(1L, quickFilterRowCount(), "quick filters must survive too")
+    }
+
+    @Test
+    fun aMigratedCardCanBeFavorited() = runTest {
+        installVersionFourDatabase()
+        AppDatabase.Schema.migrate(driver, 4, AppDatabase.Schema.version)
+        val repository = cards()
+
+        repository.setFavorite(CardId(1), true)
+
+        assertEquals(listOf(true, false), repository.observeByTopic(TopicId(1)).first().map { it.isFavorite })
     }
 
     private fun quickFilterRowCount(): Long = driver.executeQuery(

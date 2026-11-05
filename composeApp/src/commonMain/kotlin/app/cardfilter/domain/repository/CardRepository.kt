@@ -34,5 +34,8 @@ interface CardRepository {
     /** Replaces the title and the whole attribute list of the card. */
     suspend fun update(id: CardId, title: String, attributes: List<Attribute>)
 
+    /** Marks or unmarks the card as a favorite; the title, attributes and image are untouched. */
+    suspend fun setFavorite(id: CardId, favorite: Boolean)
+
     suspend fun delete(id: CardId)
 }

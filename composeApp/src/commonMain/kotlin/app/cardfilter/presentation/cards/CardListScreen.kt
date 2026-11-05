@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -190,6 +192,12 @@ fun CardListScreen(
                         supportingText = Strings.notFilterNote.takeIf { state.notQuery.isNotBlank() },
                     )
                 }
+                Text(
+                    text = Strings.cardCount(shown = state.visibleCards.size, total = state.cards.size),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                )
             }
             when {
                 state.isLoading -> Unit
@@ -217,6 +225,7 @@ fun CardListScreen(
                             loadImage = { viewModel.loadImage(card) },
                             onOpen = { onEditCard(card.id) },
                             onDelete = { viewModel.onDeleteClick(card) },
+                            onFavorite = { viewModel.onFavoriteClick(card) },
                         )
                     }
                 }
@@ -320,6 +329,7 @@ private fun CardRow(
     loadImage: suspend () -> ByteArray?,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
+    onFavorite: () -> Unit,
 ) {
     Card(
         onClick = onOpen,
@@ -374,6 +384,13 @@ private fun CardRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            IconButton(onClick = onFavorite) {
+                Icon(
+                    imageVector = if (card.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (card.isFavorite) Strings.removeFavorite else Strings.addFavorite,
+                    tint = if (card.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             ItemActionsMenu(
                 menuDescription = Strings.moreActions,

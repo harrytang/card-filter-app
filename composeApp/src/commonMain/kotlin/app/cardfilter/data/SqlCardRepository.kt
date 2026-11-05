@@ -85,6 +85,10 @@ class SqlCardRepository(
         }
     }
 
+    override suspend fun setFavorite(id: CardId, favorite: Boolean) {
+        withContext(ioDispatcher) { cards.updateFavorite(if (favorite) 1L else 0L, id.value) }
+    }
+
     // Attributes are removed explicitly: SQLite foreign keys are off by default on some drivers,
     // so ON DELETE CASCADE cannot be relied on.
     override suspend fun delete(id: CardId) {
@@ -108,6 +112,7 @@ class SqlCardRepository(
         val title: String,
         val attribute: Attribute?,
         val hasImage: Boolean,
+        val isFavorite: Boolean,
     )
 
     private fun toRow(
@@ -117,11 +122,13 @@ class SqlCardRepository(
         attributeName: String?,
         attributeValue: String?,
         hasImage: Boolean,
+        isFavorite: Long,
     ) = Row(
         id = CardId(id),
         topicId = TopicId(topicId),
         title = title,
         hasImage = hasImage,
+        isFavorite = isFavorite != 0L,
         attribute = if (attributeName != null && attributeValue != null) {
             Attribute(attributeName, attributeValue)
         } else {
@@ -133,6 +140,6 @@ class SqlCardRepository(
     private fun toCards(rows: List<Row>): List<Card> =
         rows.groupBy { it.id }.values.map { group ->
             val first = group.first()
-            Card(first.id, first.topicId, first.title, group.mapNotNull { it.attribute }, first.hasImage)
+            Card(first.id, first.topicId, first.title, group.mapNotNull { it.attribute }, first.hasImage, first.isFavorite)
         }
 }

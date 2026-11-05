@@ -1,0 +1,2 @@
+-- v4 -> v5: a card can be marked as a favorite and is then listed first (Favorites).
+ALTER TABLE card ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;

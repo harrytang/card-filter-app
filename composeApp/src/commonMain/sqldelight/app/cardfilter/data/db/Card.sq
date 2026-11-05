@@ -2,7 +2,8 @@ CREATE TABLE card (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     topic_id INTEGER NOT NULL REFERENCES topic(id),
     title TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    is_favorite INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX card_topic_id ON card(topic_id);
@@ -12,7 +13,8 @@ selectWithAttributesByTopic:
 SELECT card.id, card.topic_id, card.title,
        card_attribute.name AS attribute_name,
        card_attribute.value AS attribute_value,
-       EXISTS(SELECT 1 FROM card_image WHERE card_image.card_id = card.id) AS has_image
+       EXISTS(SELECT 1 FROM card_image WHERE card_image.card_id = card.id) AS has_image,
+       card.is_favorite
 FROM card
 LEFT JOIN card_attribute ON card_attribute.card_id = card.id
 WHERE card.topic_id = ?
@@ -22,7 +24,8 @@ selectWithAttributesById:
 SELECT card.id, card.topic_id, card.title,
        card_attribute.name AS attribute_name,
        card_attribute.value AS attribute_value,
-       EXISTS(SELECT 1 FROM card_image WHERE card_image.card_id = card.id) AS has_image
+       EXISTS(SELECT 1 FROM card_image WHERE card_image.card_id = card.id) AS has_image,
+       card.is_favorite
 FROM card
 LEFT JOIN card_attribute ON card_attribute.card_id = card.id
 WHERE card.id = ?
@@ -36,6 +39,9 @@ SELECT last_insert_rowid();
 
 updateTitle:
 UPDATE card SET title = ? WHERE id = ?;
+
+updateFavorite:
+UPDATE card SET is_favorite = ? WHERE id = ?;
 
 delete:
 DELETE FROM card WHERE id = ?;
