@@ -1,6 +1,6 @@
 name: iosApp
 options:
-  bundleIdPrefix: app.cardfilter
+  bundleIdPrefix: xyz.harrytang
   deploymentTarget:
     iOS: "16.0"
 settings:
@@ -21,9 +21,19 @@ targets:
         UILaunchScreen: {}
         # Required by Compose Multiplatform on iOS (full refresh rate on ProMotion iPhones).
         CADisableMinimumFrameDurationOnPhone: true
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.cardfilter.iosApp
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.harrytang.cardfilter
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: XR2342BVV7
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
         OTHER_LDFLAGS:
           - "$(inherited)"
@@ -53,6 +63,6 @@ targets:
       - target: iosApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.cardfilter.iosAppUITests
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.harrytang.cardfilter.UITests
         TEST_TARGET_NAME: iosApp
         GENERATE_INFOPLIST_FILE: YES
