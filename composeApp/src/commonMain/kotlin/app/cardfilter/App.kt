@@ -66,6 +66,10 @@ fun App(container: AppContainer) {
                         observeCards = container.observeCards,
                         deleteCard = container.deleteCard,
                         getCardImage = container.getCardImage,
+                        observeQuickFilters = container.observeQuickFilters,
+                        saveQuickFilter = container.saveQuickFilter,
+                        editQuickFilter = container.editQuickFilter,
+                        deleteQuickFilter = container.deleteQuickFilter,
                     )
                 }
                 val importViewModel = viewModel(key = "import-${topicId.value}") {

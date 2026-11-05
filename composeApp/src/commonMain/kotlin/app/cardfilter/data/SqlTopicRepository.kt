@@ -20,6 +20,7 @@ class SqlTopicRepository(
     private val cards get() = database.cardQueries
     private val cardAttributes get() = database.cardAttributeQueries
     private val cardImages get() = database.cardImageQueries
+    private val quickFilters get() = database.quickFilterQueries
 
     override fun observeAll(): Flow<List<Topic>> =
         topics.selectAll(::toTopic).asFlow().mapToList(ioDispatcher)
@@ -43,6 +44,7 @@ class SqlTopicRepository(
     override suspend fun delete(id: TopicId) {
         withContext(ioDispatcher) {
             database.transaction {
+                quickFilters.deleteByTopic(id.value)
                 cardAttributes.deleteByTopic(id.value)
                 cardImages.deleteByTopic(id.value)
                 cards.deleteByTopic(id.value)

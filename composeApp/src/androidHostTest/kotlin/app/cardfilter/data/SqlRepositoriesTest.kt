@@ -31,6 +31,18 @@ private class TestDatabase(clock: () -> Long) {
     val database = AppDatabase(driver)
     val topics = SqlTopicRepository(database, Dispatchers.Unconfined, clock)
     val cards = SqlCardRepository(database, Dispatchers.Unconfined, clock)
+    val quickFilters = SqlQuickFilterRepository(database, Dispatchers.Unconfined, clock)
+
+    /** Every stored quick filter row, including any that no topic owns (orphans). */
+    fun quickFilterRowCount(): Long = driver.executeQuery(
+        identifier = null,
+        sql = "SELECT COUNT(*) FROM quick_filter",
+        mapper = { cursor ->
+            cursor.next()
+            QueryResult.Value(checkNotNull(cursor.getLong(0)))
+        },
+        parameters = 0,
+    ).value
 
     /** Every stored attribute row, including any that no card owns (orphans). */
     fun attributeRowCount(): Long = driver.executeQuery(
@@ -448,5 +460,78 @@ class SqlCardRepositoryTest {
         val card = db.cards.create(topicA, "ベビーフード", attributes)
 
         assertEquals(attributes, db.cards.get(card.id)?.attributes)
+    }
+}
+
+class SqlQuickFilterRepositoryTest {
+    private var time = 0L
+    private val db = TestDatabase { ++time }
+
+    @Test
+    fun create_thenObserve_returnsTheFilterWithAllFields() = runTest {
+        val topic = db.topics.create("Pigeon")
+
+        val created = db.quickFilters.create(topic.id, "Safe 7m", "7", "egg, milk")
+
+        assertEquals(listOf(created), db.quickFilters.observeByTopic(topic.id).first())
+        assertEquals(Triple("Safe 7m", "7", "egg, milk"), Triple(created.name, created.include, created.exclude))
+    }
+
+    @Test
+    fun observe_returnsOnlyThatTopicsFilters_inCreationOrder() = runTest {
+        val a = db.topics.create("A")
+        val b = db.topics.create("B")
+        db.quickFilters.create(a.id, "first", "1", "")
+        db.quickFilters.create(b.id, "other", "2", "")
+        db.quickFilters.create(a.id, "second", "3", "")
+
+        assertEquals(listOf("first", "second"), db.quickFilters.observeByTopic(a.id).first().map { it.name })
+    }
+
+    @Test
+    fun create_keepsVietnameseAndJapaneseTextUnchanged() = runTest {
+        val topic = db.topics.create("T")
+
+        db.quickFilters.create(topic.id, "Không trứng", "thịt bầm", "卵、たまご")
+
+        val stored = db.quickFilters.observeByTopic(topic.id).first().single()
+        assertEquals(Triple("Không trứng", "thịt bầm", "卵、たまご"), Triple(stored.name, stored.include, stored.exclude))
+    }
+
+    @Test
+    fun update_changesTheFieldsOfThatFilterOnly() = runTest {
+        val topic = db.topics.create("T")
+        val one = db.quickFilters.create(topic.id, "one", "1", "a")
+        val two = db.quickFilters.create(topic.id, "two", "2", "b")
+
+        db.quickFilters.update(one.id, "uno", "9", "z")
+
+        val stored = db.quickFilters.observeByTopic(topic.id).first()
+        assertEquals(Triple("uno", "9", "z"), stored[0].let { Triple(it.name, it.include, it.exclude) })
+        assertEquals(two, stored[1])
+    }
+
+    @Test
+    fun delete_removesOnlyThatFilter() = runTest {
+        val topic = db.topics.create("T")
+        val one = db.quickFilters.create(topic.id, "one", "1", "")
+        db.quickFilters.create(topic.id, "two", "2", "")
+
+        db.quickFilters.delete(one.id)
+
+        assertEquals(listOf("two"), db.quickFilters.observeByTopic(topic.id).first().map { it.name })
+    }
+
+    @Test
+    fun deletingATopic_removesItsQuickFiltersButNotOtherTopicsFilters() = runTest {
+        val a = db.topics.create("A")
+        val b = db.topics.create("B")
+        db.quickFilters.create(a.id, "gone", "1", "")
+        db.quickFilters.create(b.id, "stays", "2", "")
+
+        db.topics.delete(a.id)
+
+        assertEquals(1L, db.quickFilterRowCount(), "only the surviving topic's filter may remain")
+        assertEquals(listOf("stays"), db.quickFilters.observeByTopic(b.id).first().map { it.name })
     }
 }

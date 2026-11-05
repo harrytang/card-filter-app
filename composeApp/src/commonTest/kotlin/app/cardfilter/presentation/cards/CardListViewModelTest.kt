@@ -8,6 +8,12 @@ import app.cardfilter.domain.model.TopicId
 import app.cardfilter.domain.repository.CardRepository
 import app.cardfilter.domain.repository.TopicRepository
 import app.cardfilter.domain.usecase.DeleteCard
+import app.cardfilter.domain.usecase.DeleteQuickFilter
+import app.cardfilter.domain.usecase.EditQuickFilter
+import app.cardfilter.domain.usecase.ObserveQuickFilters
+import app.cardfilter.domain.usecase.SaveQuickFilter
+import app.cardfilter.domain.validation.TitleError
+import app.cardfilter.testutil.FakeQuickFilterRepository
 import app.cardfilter.domain.usecase.GetCardImage
 import app.cardfilter.domain.usecase.ObserveCards
 import app.cardfilter.domain.usecase.ObserveTopic
@@ -34,6 +40,7 @@ import kotlin.test.assertTrue
 class CardListViewModelTest {
     private val topics = FakeTopicRepository()
     private val cards = FakeCardRepository()
+    private val quickFilters = FakeQuickFilterRepository()
     private val topicA = TopicId(1)
     private val topicB = TopicId(2)
 
@@ -52,6 +59,10 @@ class CardListViewModelTest {
         observeCards = ObserveCards(source),
         deleteCard = DeleteCard(source),
         getCardImage = GetCardImage(source),
+        observeQuickFilters = ObserveQuickFilters(quickFilters),
+        saveQuickFilter = SaveQuickFilter(quickFilters),
+        editQuickFilter = EditQuickFilter(quickFilters),
+        deleteQuickFilter = DeleteQuickFilter(quickFilters),
     )
 
     @Test
@@ -191,6 +202,10 @@ class CardListViewModelTest {
             observeCards = ObserveCards(cards),
             deleteCard = DeleteCard(cards),
             getCardImage = GetCardImage(cards),
+            observeQuickFilters = ObserveQuickFilters(quickFilters),
+            saveQuickFilter = SaveQuickFilter(quickFilters),
+            editQuickFilter = EditQuickFilter(quickFilters),
+            deleteQuickFilter = DeleteQuickFilter(quickFilters),
         )
 
         assertTrue(viewModel.state.value.failure)
@@ -257,49 +272,48 @@ class CardListViewModelTest {
     }
 
     @Test
-    fun notMode_showsTheCardsThatDoNotContainTheQuery() = runTest {
+    fun theNotQueryHidesCardsThatContainIt_whileCardsKeepsTheWholeTopic() = runTest {
         cards.create(topicA, "Cháo", listOf(Attribute("allergen", "egg")))
         cards.create(topicA, "Súp", listOf(Attribute("allergen", "milk")))
         val viewModel = viewModel()
-        viewModel.onQueryChange("egg")
 
-        viewModel.onNotModeChange(true)
+        viewModel.onNotQueryChange("egg")
 
         val state = viewModel.state.value
-        assertTrue(state.notMode)
+        assertEquals("egg", state.notQuery)
         assertEquals(listOf("Súp"), state.visibleCards.map { it.title })
         assertEquals(2, state.cards.size)
     }
 
     @Test
-    fun turningNotModeOff_restoresTheMatchingResults() = runTest {
-        cards.create(topicA, "Cháo", listOf(Attribute("allergen", "egg")))
-        cards.create(topicA, "Súp", listOf(Attribute("allergen", "milk")))
+    fun includeAndNotQueriesApplyTogether() = runTest {
+        cards.create(topicA, "A", listOf(Attribute("tuổi", "7 tháng"), Attribute("allergen", "egg")))
+        cards.create(topicA, "B", listOf(Attribute("tuổi", "7 tháng"), Attribute("allergen", "none")))
+        cards.create(topicA, "C", listOf(Attribute("tuổi", "8 tháng"), Attribute("allergen", "none")))
         val viewModel = viewModel()
-        viewModel.onQueryChange("egg")
-        viewModel.onNotModeChange(true)
 
-        viewModel.onNotModeChange(false)
+        viewModel.onQueryChange("7")
+        viewModel.onNotQueryChange("egg")
 
-        assertEquals(listOf("Cháo"), viewModel.state.value.visibleCards.map { it.title })
+        assertEquals(listOf("B"), viewModel.state.value.visibleCards.map { it.title })
     }
 
     @Test
-    fun notMode_withAnEmptyQuery_showsEveryCard() = runTest {
+    fun clearingTheNotQuery_restoresTheMatchingResults() = runTest {
         cards.create(topicA, "Cháo", listOf(Attribute("allergen", "egg")))
         cards.create(topicA, "Súp", listOf(Attribute("allergen", "milk")))
         val viewModel = viewModel()
+        viewModel.onNotQueryChange("egg")
 
-        viewModel.onNotModeChange(true)
+        viewModel.onNotQueryChange("")
 
         assertEquals(2, viewModel.state.value.visibleCards.size)
     }
 
     @Test
-    fun aCardCreatedInNotMode_appearsOnlyIfItLacksTheQuery() = runTest {
+    fun aCardCreatedWithANotQuery_appearsOnlyIfItLacksTheQuery() = runTest {
         val viewModel = viewModel()
-        viewModel.onQueryChange("egg")
-        viewModel.onNotModeChange(true)
+        viewModel.onNotQueryChange("egg")
 
         cards.create(topicA, "Has", listOf(Attribute("allergen", "egg")))
         cards.create(topicA, "Lacks", listOf(Attribute("allergen", "milk")))
@@ -380,5 +394,187 @@ class CardListViewModelTest {
         cards.create(topicA, "Other", listOf(Attribute("k", "milk")))
 
         assertEquals("egg", viewModel.state.value.query)
+    }
+
+    // ---- quick filters
+
+    private suspend fun savedFilter(name: String, include: String, exclude: String, topic: TopicId = topicA) =
+        quickFilters.create(topic, name, include, exclude)
+
+    @Test
+    fun showsOnlyThisTopicsQuickFilters() = runTest {
+        savedFilter("mine", "7", "egg")
+        savedFilter("theirs", "8", "milk", topicB)
+
+        assertEquals(listOf("mine"), viewModel().state.value.quickFilters.map { it.name })
+    }
+
+    @Test
+    fun tappingAQuickFilter_appliesItsIncludeAndNotQueriesTogether() = runTest {
+        cards.create(topicA, "A", listOf(Attribute("tuổi", "7 tháng"), Attribute("allergen", "egg")))
+        cards.create(topicA, "B", listOf(Attribute("tuổi", "7 tháng"), Attribute("allergen", "none")))
+        cards.create(topicA, "C", listOf(Attribute("tuổi", "8 tháng"), Attribute("allergen", "none")))
+        val filter = savedFilter("Safe 7m", "7", "egg")
+        val viewModel = viewModel()
+
+        viewModel.onQuickFilterClick(filter)
+
+        val state = viewModel.state.value
+        assertEquals("7", state.query)
+        assertEquals("egg", state.notQuery)
+        assertEquals(filter.id, state.activeQuickFilterId)
+        assertEquals(listOf("B"), state.visibleCards.map { it.title })
+    }
+
+    @Test
+    fun tappingAQuickFilterReplacesWhatWasTyped() = runTest {
+        val filter = savedFilter("F", "7", "egg")
+        val viewModel = viewModel()
+        viewModel.onQueryChange("something else")
+        viewModel.onNotQueryChange("other")
+
+        viewModel.onQuickFilterClick(filter)
+
+        assertEquals("7", viewModel.state.value.query)
+        assertEquals("egg", viewModel.state.value.notQuery)
+    }
+
+    @Test
+    fun tappingTheActiveQuickFilterAgain_clearsBothQueries() = runTest {
+        cards.create(topicA, "A", listOf(Attribute("k", "egg")))
+        cards.create(topicA, "B", listOf(Attribute("k", "rice")))
+        val filter = savedFilter("F", "rice", "egg")
+        val viewModel = viewModel()
+        viewModel.onQuickFilterClick(filter)
+
+        viewModel.onQuickFilterClick(filter)
+
+        val state = viewModel.state.value
+        assertEquals("", state.query)
+        assertEquals("", state.notQuery)
+        assertNull(state.activeQuickFilterId)
+        assertEquals(2, state.visibleCards.size)
+    }
+
+    @Test
+    fun editingAQueryByHand_deselectsTheQuickFilter() = runTest {
+        val filter = savedFilter("F", "7", "egg")
+        val viewModel = viewModel()
+        viewModel.onQuickFilterClick(filter)
+
+        viewModel.onNotQueryChange("egg, milk")
+
+        assertNull(viewModel.state.value.activeQuickFilterId)
+    }
+
+    @Test
+    fun noQuickFilterIsActiveWhileBothQueriesAreEmpty() = runTest {
+        savedFilter("Empty", "", "")
+
+        assertNull(viewModel().state.value.activeQuickFilterId)
+    }
+
+    @Test
+    fun applyingAQuickFilter_bumpsTheQueryRevisionButTypingDoesNot() = runTest {
+        val filter = savedFilter("F", "7", "")
+        val viewModel = viewModel()
+        val start = viewModel.state.value.queryRevision
+
+        viewModel.onQueryChange("typed")
+        assertEquals(start, viewModel.state.value.queryRevision)
+
+        viewModel.onQuickFilterClick(filter)
+        assertEquals(start + 1, viewModel.state.value.queryRevision)
+    }
+
+    @Test
+    fun saveCurrentAsFilter_opensTheEditorPrefilledWithTheCurrentQueries() = runTest {
+        val viewModel = viewModel()
+        viewModel.onQueryChange("7")
+        viewModel.onNotQueryChange("egg")
+
+        viewModel.onAddQuickFilterClick()
+
+        assertEquals(QuickFilterDialog.Editor(null, "", "7", "egg"), viewModel.state.value.quickFilterDialog)
+    }
+
+    @Test
+    fun savingANewQuickFilter_storesItAndClosesTheEditor() = runTest {
+        val viewModel = viewModel()
+        viewModel.onAddQuickFilterClick()
+
+        viewModel.onQuickFilterSave("  Safe 7m ", "7", "egg")
+
+        val state = viewModel.state.value
+        assertEquals(listOf("Safe 7m"), state.quickFilters.map { it.name })
+        assertEquals("7" to "egg", state.quickFilters.single().let { it.include to it.exclude })
+        assertNull(state.quickFilterDialog)
+        assertNull(state.nameError)
+    }
+
+    @Test
+    fun savingANewQuickFilter_doesNotChangeTheCurrentSearch() = runTest {
+        val viewModel = viewModel()
+        viewModel.onQueryChange("typed")
+        viewModel.onAddQuickFilterClick()
+
+        viewModel.onQuickFilterSave("F", "7", "egg")
+
+        assertEquals("typed", viewModel.state.value.query)
+    }
+
+    @Test
+    fun aBlankName_keepsTheEditorOpenWithAnError() = runTest {
+        val viewModel = viewModel()
+        viewModel.onAddQuickFilterClick()
+
+        viewModel.onQuickFilterSave("   ", "7", "egg")
+
+        val state = viewModel.state.value
+        assertEquals(TitleError.Blank, state.nameError)
+        assertTrue(state.quickFilters.isEmpty())
+        assertTrue(state.quickFilterDialog is QuickFilterDialog.Editor)
+    }
+
+    @Test
+    fun editingAQuickFilter_opensTheEditorWithItsValuesAndSavesTheChange() = runTest {
+        val filter = savedFilter("Old", "7", "egg")
+        val viewModel = viewModel()
+
+        viewModel.onQuickFilterEditClick(filter)
+        assertEquals(QuickFilterDialog.Editor(filter.id, "Old", "7", "egg"), viewModel.state.value.quickFilterDialog)
+
+        viewModel.onQuickFilterSave("New", "8", "milk")
+
+        val saved = viewModel.state.value.quickFilters.single()
+        assertEquals(Triple("New", "8", "milk"), Triple(saved.name, saved.include, saved.exclude))
+        assertNull(viewModel.state.value.quickFilterDialog)
+    }
+
+    @Test
+    fun deletingAQuickFilter_asksFirstThenRemovesIt() = runTest {
+        val filter = savedFilter("F", "7", "egg")
+        val viewModel = viewModel()
+
+        viewModel.onQuickFilterDeleteClick(filter)
+        assertEquals(QuickFilterDialog.ConfirmDelete(filter), viewModel.state.value.quickFilterDialog)
+        assertEquals(1, viewModel.state.value.quickFilters.size)
+
+        viewModel.onQuickFilterDeleteConfirmed()
+
+        assertTrue(viewModel.state.value.quickFilters.isEmpty())
+        assertNull(viewModel.state.value.quickFilterDialog)
+    }
+
+    @Test
+    fun dismissingTheQuickFilterDialog_closesItAndClearsTheError() = runTest {
+        val viewModel = viewModel()
+        viewModel.onAddQuickFilterClick()
+        viewModel.onQuickFilterSave("", "7", "")
+
+        viewModel.onQuickFilterDialogDismiss()
+
+        assertNull(viewModel.state.value.quickFilterDialog)
+        assertNull(viewModel.state.value.nameError)
     }
 }

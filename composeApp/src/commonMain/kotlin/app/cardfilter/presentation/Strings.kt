@@ -34,14 +34,25 @@ internal object Strings {
     const val searchCards = "Search this topic"
     const val clearSearch = "Clear search"
     const val searchNote = "Shows cards that contain any of these words. It does not show what a card lacks."
-    const val notFilter = "Not"
-    const val notFilterNote = "Shows cards that contain none of these words. A card with no recorded value also shows."
-    const val noMatchesNotTitle = "Every card contains it"
-    const val noMatchesNotMessage =
-        "Every card in this topic contains at least one of those words. This is a text search, not an allergy check."
+    const val notFilter = "Not (hide cards with)"
+    const val clearNotFilter = "Clear Not filter"
+    const val notFilterNote =
+        "Hides cards that contain any of these words. A card with no recorded value is not hidden."
+    const val quickFilters = "Quick filters"
+    const val addQuickFilter = "New filter"
+    const val newQuickFilterTitle = "New quick filter"
+    const val editQuickFilterTitle = "Edit quick filter"
+    const val quickFilterName = "Name"
+    const val quickFilterInclude = "Search words"
+    const val quickFilterActions = "Filter actions"
+    const val quickFilterActionsHint = "Hold for edit and delete"
+    const val editQuickFilter = "Edit filter"
+    const val deleteQuickFilter = "Delete filter"
+    fun deleteQuickFilterMessage(name: String) = "Delete the filter \"$name\"? Your cards are not changed."
+
     const val noMatchesTitle = "No matching cards"
     const val noMatchesMessage =
-        "No card in this topic contains any of those words. This is a text search, not an allergy check."
+        "No card in this topic fits these filters. This is a text search, not an allergy check."
 
     const val cardImage = "Card image"
     const val imageUrl = "Image URL"

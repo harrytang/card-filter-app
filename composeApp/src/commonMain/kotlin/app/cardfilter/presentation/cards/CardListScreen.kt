@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,7 +22,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -48,12 +49,15 @@ import app.cardfilter.designsystem.CardImage
 import app.cardfilter.designsystem.ConfirmDeleteDialog
 import app.cardfilter.designsystem.EmptyState
 import app.cardfilter.designsystem.ItemActionsMenu
+import app.cardfilter.designsystem.QuickFilterChip
 import app.cardfilter.designsystem.SearchField
 import app.cardfilter.designsystem.Spacing
 import app.cardfilter.domain.model.Card
 import app.cardfilter.domain.importing.ImportFailure
 import app.cardfilter.domain.importing.checkImportSize
 import app.cardfilter.domain.model.CardId
+import app.cardfilter.domain.model.QuickFilter
+import app.cardfilter.domain.model.QuickFilterId
 import app.cardfilter.presentation.Strings
 import androidx.compose.material3.TextButton
 import io.github.vinceglb.filekit.PlatformFile
@@ -139,6 +143,7 @@ fun CardListScreen(
                 onClick = {
                     // A new card that does not match the query would vanish after saving.
                     viewModel.onQueryChange("")
+                    viewModel.onNotQueryChange("")
                     onAddCard()
                 },
             ) {
@@ -151,27 +156,40 @@ fun CardListScreen(
         Column(modifier = Modifier.padding(padding).imePadding()) {
             // Stays visible while the query matches nothing, so the user can always clear it.
             if (state.cards.isNotEmpty()) {
-                SearchField(
-                    initialText = state.query,
-                    label = Strings.searchCards,
-                    clearLabel = Strings.clearSearch,
-                    onTextChange = viewModel::onQueryChange,
-                    onSearch = focusManager::clearFocus,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
-                    supportingText = when {
-                        state.query.isBlank() -> null
-                        state.notMode -> Strings.notFilterNote
-                        else -> Strings.searchNote
-                    },
+                QuickFilterRow(
+                    filters = state.quickFilters,
+                    activeId = state.activeQuickFilterId,
+                    onApply = viewModel::onQuickFilterClick,
+                    onAdd = viewModel::onAddQuickFilterClick,
+                    onEdit = viewModel::onQuickFilterEditClick,
+                    onDelete = viewModel::onQuickFilterDeleteClick,
                 )
-                FilterChip(
-                    selected = state.notMode,
-                    onClick = { viewModel.onNotModeChange(!state.notMode) },
-                    label = { Text(Strings.notFilter) },
-                    modifier = Modifier.padding(horizontal = Spacing.lg),
-                )
+                // Re-created when a quick filter sets the queries: the fields keep their own text
+                // while typing (for IME composition) and only read the state when they are created.
+                key(state.queryRevision) {
+                    SearchField(
+                        initialText = state.query,
+                        label = Strings.searchCards,
+                        clearLabel = Strings.clearSearch,
+                        onTextChange = viewModel::onQueryChange,
+                        onSearch = focusManager::clearFocus,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                        supportingText = Strings.searchNote.takeIf { state.query.isNotBlank() },
+                    )
+                    SearchField(
+                        initialText = state.notQuery,
+                        label = Strings.notFilter,
+                        clearLabel = Strings.clearNotFilter,
+                        onTextChange = viewModel::onNotQueryChange,
+                        onSearch = focusManager::clearFocus,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                        supportingText = Strings.notFilterNote.takeIf { state.notQuery.isNotBlank() },
+                    )
+                }
             }
             when {
                 state.isLoading -> Unit
@@ -180,8 +198,8 @@ fun CardListScreen(
                     message = Strings.cardsEmptyMessage,
                 )
                 state.visibleCards.isEmpty() -> EmptyState(
-                    title = if (state.notMode) Strings.noMatchesNotTitle else Strings.noMatchesTitle,
-                    message = if (state.notMode) Strings.noMatchesNotMessage else Strings.noMatchesMessage,
+                    title = Strings.noMatchesTitle,
+                    message = Strings.noMatchesMessage,
                 )
                 else -> LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -223,6 +241,25 @@ fun CardListScreen(
         onDismissResult = importViewModel::onDismissResult,
     )
 
+    when (val dialog = state.quickFilterDialog) {
+        is QuickFilterDialog.Editor -> QuickFilterEditorDialog(
+            editor = dialog,
+            nameError = state.nameError,
+            onNameChanged = viewModel::onQuickFilterNameChanged,
+            onSave = viewModel::onQuickFilterSave,
+            onDismiss = viewModel::onQuickFilterDialogDismiss,
+        )
+        is QuickFilterDialog.ConfirmDelete -> ConfirmDeleteDialog(
+            title = Strings.deleteQuickFilter,
+            message = Strings.deleteQuickFilterMessage(dialog.filter.name),
+            confirmLabel = Strings.delete,
+            dismissLabel = Strings.cancel,
+            onConfirm = viewModel::onQuickFilterDeleteConfirmed,
+            onDismiss = viewModel::onQuickFilterDialogDismiss,
+        )
+        null -> Unit
+    }
+
     state.cardPendingDelete?.let { card ->
         ConfirmDeleteDialog(
             title = Strings.deleteCard,
@@ -232,6 +269,42 @@ fun CardListScreen(
             onConfirm = viewModel::onDeleteConfirmed,
             onDismiss = viewModel::onDeleteDismiss,
         )
+    }
+}
+
+/** The saved filters of the topic as a sideways-scrolling row of chips, plus a chip to add one. */
+@Composable
+private fun QuickFilterRow(
+    filters: List<QuickFilter>,
+    activeId: QuickFilterId?,
+    onApply: (QuickFilter) -> Unit,
+    onAdd: () -> Unit,
+    onEdit: (QuickFilter) -> Unit,
+    onDelete: (QuickFilter) -> Unit,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items(filters, key = { it.id.value }) { filter ->
+            QuickFilterChip(
+                name = filter.name,
+                selected = filter.id == activeId,
+                longPressLabel = Strings.quickFilterActionsHint,
+                editLabel = Strings.editQuickFilter,
+                deleteLabel = Strings.deleteQuickFilter,
+                onClick = { onApply(filter) },
+                onEdit = { onEdit(filter) },
+                onDelete = { onDelete(filter) },
+            )
+        }
+        item(key = "add") {
+            TextButton(onClick = onAdd) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(Strings.addQuickFilter, modifier = Modifier.padding(start = Spacing.xs))
+            }
+        }
     }
 }
 

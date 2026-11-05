@@ -6,7 +6,10 @@ import app.cardfilter.domain.model.Card
 import app.cardfilter.domain.model.CardId
 import app.cardfilter.domain.model.Topic
 import app.cardfilter.domain.model.TopicId
+import app.cardfilter.domain.model.QuickFilter
+import app.cardfilter.domain.model.QuickFilterId
 import app.cardfilter.domain.repository.CardRepository
+import app.cardfilter.domain.repository.QuickFilterRepository
 import app.cardfilter.domain.repository.TopicRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,5 +92,29 @@ class FakeCardRepository : CardRepository {
     override suspend fun delete(id: CardId) {
         images.remove(id)
         cards.update { list -> list.filterNot { it.id == id } }
+    }
+}
+
+class FakeQuickFilterRepository : QuickFilterRepository {
+    private val filters = MutableStateFlow<List<QuickFilter>>(emptyList())
+    private var nextId = 1L
+
+    override fun observeByTopic(topicId: TopicId): Flow<List<QuickFilter>> =
+        filters.map { list -> list.filter { it.topicId == topicId } }
+
+    override suspend fun create(topicId: TopicId, name: String, include: String, exclude: String): QuickFilter {
+        val filter = QuickFilter(QuickFilterId(nextId++), topicId, name, include, exclude)
+        filters.update { it + filter }
+        return filter
+    }
+
+    override suspend fun update(id: QuickFilterId, name: String, include: String, exclude: String) {
+        filters.update { list ->
+            list.map { if (it.id == id) it.copy(name = name, include = include, exclude = exclude) else it }
+        }
+    }
+
+    override suspend fun delete(id: QuickFilterId) {
+        filters.update { list -> list.filterNot { it.id == id } }
     }
 }

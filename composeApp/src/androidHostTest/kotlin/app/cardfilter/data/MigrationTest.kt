@@ -82,8 +82,38 @@ class MigrationTest {
     ).value
 
     @Test
-    fun schemaVersionIsThreeAfterTheCardImageMigration() {
-        assertEquals(3L, AppDatabase.Schema.version)
+    fun schemaVersionIsFourAfterTheQuickFilterMigration() {
+        assertEquals(4L, AppDatabase.Schema.version)
+    }
+
+    private fun quickFilterRowCount(): Long = driver.executeQuery(
+        identifier = null,
+        sql = "SELECT COUNT(*) FROM quick_filter",
+        mapper = { cursor ->
+            cursor.next()
+            QueryResult.Value(checkNotNull(cursor.getLong(0)))
+        },
+        parameters = 0,
+    ).value
+
+    @Test
+    fun migratingFromVersionThree_keepsCardsAndCreatesAQuickFilterTable() = runTest {
+        installMilestoneTwoDatabase()
+        driver.execute(
+            null,
+            "CREATE TABLE card_image (card_id INTEGER NOT NULL PRIMARY KEY REFERENCES card(id), bytes BLOB NOT NULL)",
+            0,
+        )
+
+        AppDatabase.Schema.migrate(driver, 3, AppDatabase.Schema.version)
+        driver.execute(
+            null,
+            "INSERT INTO quick_filter (topic_id, name, include_query, exclude_query, created_at) VALUES (1, 'Safe', '7', 'egg', 5)",
+            0,
+        )
+
+        assertEquals(1L, quickFilterRowCount())
+        assertEquals(2, cards().observeByTopic(TopicId(1)).first().size)
     }
 
     @Test

@@ -171,7 +171,7 @@ class CardSearchTest {
     }
 
     private fun titlesWithout(query: String, vararg cards: Card): List<String> =
-        CardSearch(cards.toList()).filter(query, exclude = true).map { it.title }
+        CardSearch(cards.toList()).filter("", query).map { it.title }
 
     @Test
     fun exclude_hidesCardsWhoseAttributeValueContainsTheWord() {
@@ -233,5 +233,73 @@ class CardSearchTest {
 
         assertEquals(listOf("A", "B", "C"), (included + excluded).sorted())
         assertEquals(emptyList(), included.intersect(excluded.toSet()).toList())
+    }
+
+    private fun titlesFor(include: String, exclude: String, vararg cards: Card): List<String> =
+        CardSearch(cards.toList()).filter(include, exclude).map { it.title }
+
+    @Test
+    fun commasSemicolonsAndIdeographicCommasSeparateWords() {
+        val egg = card("A", "k" to "egg")
+        val milk = card("B", "k" to "milk")
+        val rice = card("C", "k" to "rice")
+
+        assertEquals(listOf("A", "B"), titlesFor("egg, milk", egg, milk, rice))
+        assertEquals(listOf("A", "B"), titlesFor("egg;milk", egg, milk, rice))
+        assertEquals(listOf("A", "B"), titlesFor("egg、milk", egg, milk, rice))
+        assertEquals(listOf("C"), titlesWithout("egg, milk", egg, milk, rice))
+    }
+
+    @Test
+    fun notMilkWheat7_9_12_hidesTheSevenMonthCard() {
+        val seven = card("Cháo", "tuổi" to "7 tháng")
+        val eight = card("Súp", "tuổi" to "8 tháng")
+        val milk = card("Bánh", "allergen" to "milk")
+
+        assertEquals(listOf("Súp"), titlesWithout("milk, wheat, 7, 9, 12", seven, eight, milk))
+    }
+
+    @Test
+    fun aNumberMatchesAWholeNumberOnly() {
+        val seven = card("A", "tuổi" to "7 tháng")
+        val seventeen = card("B", "tuổi" to "17 tháng")
+        val seventy = card("C", "tuổi" to "70")
+        val range = card("D", "tuổi" to "7-9 tháng")
+
+        assertEquals(listOf("A", "D"), titlesFor("7", seven, seventeen, seventy, range))
+        assertEquals(listOf("B", "C"), titlesWithout("7", seven, seventeen, seventy, range).filter { it != "D" })
+    }
+
+    @Test
+    fun aTextWordStillMatchesAsASubstring() {
+        val eggs = card("A", "k" to "eggs")
+
+        assertEquals(listOf("A"), titlesFor("egg", eggs))
+    }
+
+    @Test
+    fun includeAndExcludeCombine() {
+        val sevenEgg = card("A", "tuổi" to "7 tháng", "allergen" to "egg")
+        val sevenPlain = card("B", "tuổi" to "7 tháng", "allergen" to "none")
+        val eightPlain = card("C", "tuổi" to "8 tháng", "allergen" to "none")
+
+        assertEquals(listOf("B"), titlesFor("7", "egg", sevenEgg, sevenPlain, eightPlain))
+    }
+
+    @Test
+    fun emptyIncludeWithAnExcludeWord_showsEverythingElse() {
+        val egg = card("A", "k" to "egg")
+        val rice = card("B", "k" to "rice")
+
+        assertEquals(listOf("B"), titlesFor("", "egg", egg, rice))
+    }
+
+    @Test
+    fun emptyExcludeLeavesNormalSearchUnchanged() {
+        val egg = card("A", "k" to "egg")
+        val rice = card("B", "k" to "rice")
+
+        assertEquals(listOf("A"), titlesFor("egg", "", egg, rice))
+        assertEquals(listOf("A"), titlesFor("egg", "  ,  ", egg, rice))
     }
 }

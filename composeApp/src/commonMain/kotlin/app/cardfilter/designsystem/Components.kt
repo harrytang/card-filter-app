@@ -1,5 +1,13 @@
 package app.cardfilter.designsystem
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +42,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun TextInputDialog(
@@ -234,6 +243,64 @@ fun ItemActionsMenu(
                 text = { Text(deleteLabel, color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     expanded = false
+                    onDelete()
+                },
+            )
+        }
+    }
+}
+
+/**
+ * A chip that applies a saved filter when tapped and offers edit and delete on a long press.
+ * [selected] marks the filter whose queries are in the search fields right now.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun QuickFilterChip(
+    name: String,
+    selected: Boolean,
+    longPressLabel: String,
+    editLabel: String,
+    deleteLabel: String,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    Box {
+        Surface(
+            shape = shape,
+            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+            border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .clip(shape)
+                .combinedClickable(
+                    role = Role.Button,
+                    onLongClickLabel = longPressLabel,
+                    onLongClick = { menuOpen = true },
+                    onClick = onClick,
+                ),
+        ) {
+            Text(
+                name,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            )
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(editLabel) },
+                onClick = {
+                    menuOpen = false
+                    onEdit()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(deleteLabel, color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    menuOpen = false
                     onDelete()
                 },
             )

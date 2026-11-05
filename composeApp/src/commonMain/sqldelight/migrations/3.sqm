@@ -1,0 +1,11 @@
+-- v3 -> v4: a topic can own saved quick filters, each an include query and a "not" query (Quick Filters).
+CREATE TABLE quick_filter (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    topic_id INTEGER NOT NULL REFERENCES topic(id),
+    name TEXT NOT NULL,
+    include_query TEXT NOT NULL,
+    exclude_query TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX quick_filter_topic_id ON quick_filter(topic_id);
