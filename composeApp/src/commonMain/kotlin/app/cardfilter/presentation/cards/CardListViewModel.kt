@@ -26,6 +26,8 @@ data class CardListUiState(
     val cards: List<Card> = emptyList(),
     val visibleCards: List<Card> = emptyList(),
     val query: String = "",
+    /** When true, [visibleCards] are the cards that do NOT contain any word of [query]. */
+    val notMode: Boolean = false,
     val isLoading: Boolean = true,
     val cardPendingDelete: Card? = null,
     val failure: Boolean = false,
@@ -55,13 +57,14 @@ class CardListViewModel(
             val searches = observeCards(topicId)
                 .map(::CardSearch)
                 .catch { _state.update { state -> state.copy(isLoading = false, failure = true) } }
-            val queries = _state.map { it.query }.distinctUntilChanged()
+            val queries = _state.map { it.query to it.notMode }.distinctUntilChanged()
             combine(searches, queries) { search, query -> search to query }
-                .collect { (search, query) ->
+                .collect { (search, queryAndMode) ->
+                    val (query, notMode) = queryAndMode
                     _state.update {
                         it.copy(
                             cards = search.cards,
-                            visibleCards = search.filter(query),
+                            visibleCards = search.filter(query, exclude = notMode),
                             isLoading = false,
                         )
                     }
@@ -70,6 +73,8 @@ class CardListViewModel(
     }
 
     fun onQueryChange(query: String) = _state.update { it.copy(query = query) }
+
+    fun onNotModeChange(notMode: Boolean) = _state.update { it.copy(notMode = notMode) }
 
     /** The card's image bytes, or null: a missing or unreadable image is a normal state, not a failure. */
     suspend fun loadImage(card: Card): ByteArray? = attempt { getCardImage(card.id) }.getOrNull()

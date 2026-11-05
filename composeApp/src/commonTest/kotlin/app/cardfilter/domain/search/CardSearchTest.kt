@@ -169,4 +169,69 @@ class CardSearchTest {
         assertEquals(listOf("mine"), titlesFor("egg", mine))
         assertEquals(emptyList(), CardSearch(emptyList()).filter("egg"))
     }
+
+    private fun titlesWithout(query: String, vararg cards: Card): List<String> =
+        CardSearch(cards.toList()).filter(query, exclude = true).map { it.title }
+
+    @Test
+    fun exclude_hidesCardsWhoseAttributeValueContainsTheWord() {
+        val withEgg = card("Bánh", "allergen" to "egg, milk")
+        val without = card("Cháo", "allergen" to "none")
+
+        assertEquals(listOf("Cháo"), titlesWithout("egg", withEgg, without))
+    }
+
+    @Test
+    fun exclude_hidesCardsWhoseTitleContainsTheWord() {
+        val titled = card("Egg soup")
+        val other = card("Súp")
+
+        assertEquals(listOf("Súp"), titlesWithout("egg", titled, other))
+    }
+
+    @Test
+    fun exclude_hidesCardsMatchingAnyWord() {
+        val egg = card("A", "k" to "egg")
+        val milk = card("B", "k" to "milk")
+        val rice = card("C", "k" to "rice")
+
+        assertEquals(listOf("C"), titlesWithout("egg milk", egg, milk, rice))
+    }
+
+    @Test
+    fun exclude_ignoresCaseDiacriticsAndKanaType() {
+        val thit = card("A", "k" to "thịt bầm")
+        val tamago = card("B", "k" to "タマゴ")
+        val rice = card("C", "k" to "rice")
+
+        assertEquals(listOf("B", "C"), titlesWithout("THIT BAM", thit, tamago, rice))
+        assertEquals(listOf("A", "C"), titlesWithout("たまご", thit, tamago, rice))
+    }
+
+    @Test
+    fun exclude_neverMatchesAnAttributeName() {
+        val named = card("A", "egg" to "none")
+
+        assertEquals(listOf("A"), titlesWithout("egg", named))
+    }
+
+    @Test
+    fun exclude_withNoUsableWordKeepsEveryCard() {
+        val a = card("A", "k" to "egg")
+        val b = card("B")
+
+        assertEquals(listOf("A", "B"), titlesWithout("", a, b))
+        assertEquals(listOf("A", "B"), titlesWithout("   ", a, b))
+    }
+
+    @Test
+    fun exclude_isTheExactComplementOfInclude() {
+        val cards = arrayOf(card("A", "k" to "egg"), card("B", "k" to "milk"), card("C"))
+
+        val included = titlesFor("egg", *cards)
+        val excluded = titlesWithout("egg", *cards)
+
+        assertEquals(listOf("A", "B", "C"), (included + excluded).sorted())
+        assertEquals(emptyList(), included.intersect(excluded.toSet()).toList())
+    }
 }

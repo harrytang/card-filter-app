@@ -257,6 +257,57 @@ class CardListViewModelTest {
     }
 
     @Test
+    fun notMode_showsTheCardsThatDoNotContainTheQuery() = runTest {
+        cards.create(topicA, "Cháo", listOf(Attribute("allergen", "egg")))
+        cards.create(topicA, "Súp", listOf(Attribute("allergen", "milk")))
+        val viewModel = viewModel()
+        viewModel.onQueryChange("egg")
+
+        viewModel.onNotModeChange(true)
+
+        val state = viewModel.state.value
+        assertTrue(state.notMode)
+        assertEquals(listOf("Súp"), state.visibleCards.map { it.title })
+        assertEquals(2, state.cards.size)
+    }
+
+    @Test
+    fun turningNotModeOff_restoresTheMatchingResults() = runTest {
+        cards.create(topicA, "Cháo", listOf(Attribute("allergen", "egg")))
+        cards.create(topicA, "Súp", listOf(Attribute("allergen", "milk")))
+        val viewModel = viewModel()
+        viewModel.onQueryChange("egg")
+        viewModel.onNotModeChange(true)
+
+        viewModel.onNotModeChange(false)
+
+        assertEquals(listOf("Cháo"), viewModel.state.value.visibleCards.map { it.title })
+    }
+
+    @Test
+    fun notMode_withAnEmptyQuery_showsEveryCard() = runTest {
+        cards.create(topicA, "Cháo", listOf(Attribute("allergen", "egg")))
+        cards.create(topicA, "Súp", listOf(Attribute("allergen", "milk")))
+        val viewModel = viewModel()
+
+        viewModel.onNotModeChange(true)
+
+        assertEquals(2, viewModel.state.value.visibleCards.size)
+    }
+
+    @Test
+    fun aCardCreatedInNotMode_appearsOnlyIfItLacksTheQuery() = runTest {
+        val viewModel = viewModel()
+        viewModel.onQueryChange("egg")
+        viewModel.onNotModeChange(true)
+
+        cards.create(topicA, "Has", listOf(Attribute("allergen", "egg")))
+        cards.create(topicA, "Lacks", listOf(Attribute("allergen", "milk")))
+
+        assertEquals(listOf("Lacks"), viewModel.state.value.visibleCards.map { it.title })
+    }
+
+    @Test
     fun aCardCreatedWhileSearching_appearsOnlyIfItMatches() = runTest {
         val viewModel = viewModel()
         viewModel.onQueryChange("egg")

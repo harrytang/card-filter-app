@@ -21,6 +21,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -159,7 +160,17 @@ fun CardListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
-                    supportingText = Strings.searchNote.takeIf { state.query.isNotBlank() },
+                    supportingText = when {
+                        state.query.isBlank() -> null
+                        state.notMode -> Strings.notFilterNote
+                        else -> Strings.searchNote
+                    },
+                )
+                FilterChip(
+                    selected = state.notMode,
+                    onClick = { viewModel.onNotModeChange(!state.notMode) },
+                    label = { Text(Strings.notFilter) },
+                    modifier = Modifier.padding(horizontal = Spacing.lg),
                 )
             }
             when {
@@ -169,8 +180,8 @@ fun CardListScreen(
                     message = Strings.cardsEmptyMessage,
                 )
                 state.visibleCards.isEmpty() -> EmptyState(
-                    title = Strings.noMatchesTitle,
-                    message = Strings.noMatchesMessage,
+                    title = if (state.notMode) Strings.noMatchesNotTitle else Strings.noMatchesTitle,
+                    message = if (state.notMode) Strings.noMatchesNotMessage else Strings.noMatchesMessage,
                 )
                 else -> LazyColumn(
                     modifier = Modifier.weight(1f),

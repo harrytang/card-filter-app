@@ -34,6 +34,11 @@ internal object Strings {
     const val searchCards = "Search this topic"
     const val clearSearch = "Clear search"
     const val searchNote = "Shows cards that contain any of these words. It does not show what a card lacks."
+    const val notFilter = "Not"
+    const val notFilterNote = "Shows cards that contain none of these words. A card with no recorded value also shows."
+    const val noMatchesNotTitle = "Every card contains it"
+    const val noMatchesNotMessage =
+        "Every card in this topic contains at least one of those words. This is a text search, not an allergy check."
     const val noMatchesTitle = "No matching cards"
     const val noMatchesMessage =
         "No card in this topic contains any of those words. This is a text search, not an allergy check."
